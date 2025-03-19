@@ -2,6 +2,8 @@
 use sea_streamer_file::FileConsumer;
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::KafkaConsumer;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyConsumer;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::RedisConsumer;
 #[cfg(feature = "backend-stdio")]
@@ -24,6 +26,8 @@ pub struct SeaConsumer {
 pub(crate) enum SeaConsumerBackend {
     #[cfg(feature = "backend-kafka")]
     Kafka(KafkaConsumer),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(IggyConsumer),
     #[cfg(feature = "backend-redis")]
     Redis(RedisConsumer),
     #[cfg(feature = "backend-stdio")]
@@ -36,6 +40,8 @@ pub(crate) enum SeaConsumerBackend {
 pub enum NextFuture<'a> {
     #[cfg(feature = "backend-kafka")]
     Kafka(sea_streamer_kafka::NextFuture<'a>),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(sea_streamer_iggy::NextFuture<'a>),
     #[cfg(feature = "backend-redis")]
     Redis(sea_streamer_redis::NextFuture<'a>),
     #[cfg(feature = "backend-stdio")]
@@ -48,6 +54,8 @@ pub enum NextFuture<'a> {
 pub enum SeaMessageStream<'a> {
     #[cfg(feature = "backend-kafka")]
     Kafka(sea_streamer_kafka::KafkaMessageStream<'a>),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(sea_streamer_iggy::IggyMessageStream<'a>),
     #[cfg(feature = "backend-redis")]
     Redis(sea_streamer_redis::RedisMessageStream<'a>),
     #[cfg(feature = "backend-stdio")]
@@ -61,6 +69,8 @@ impl<'a> Debug for NextFuture<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(_) => write!(f, "NextFuture::Kafka"),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => write!(f, "NextFuture::Iggy"),
             #[cfg(feature = "backend-redis")]
             Self::Redis(_) => write!(f, "NextFuture::Redis"),
             #[cfg(feature = "backend-stdio")]
@@ -76,6 +86,8 @@ impl<'a> Debug for SeaMessageStream<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(_) => write!(f, "KafkaMessageStream"),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => write!(f, "IggyMessageStream"),
             #[cfg(feature = "backend-redis")]
             Self::Redis(_) => write!(f, "RedisMessageStream"),
             #[cfg(feature = "backend-stdio")]
@@ -91,6 +103,15 @@ impl From<KafkaConsumer> for SeaConsumer {
     fn from(i: KafkaConsumer) -> Self {
         Self {
             backend: SeaConsumerBackend::Kafka(i),
+        }
+    }
+}
+
+#[cfg(feature = "backend-iggy")]
+impl From<IggyConsumer> for SeaConsumer {
+    fn from(i: IggyConsumer) -> Self {
+        Self {
+            backend: SeaConsumerBackend::Iggy(i),
         }
     }
 }
@@ -125,6 +146,8 @@ impl From<FileConsumer> for SeaConsumer {
 impl SeaStreamerBackend for SeaConsumer {
     #[cfg(feature = "backend-kafka")]
     type Kafka = KafkaConsumer;
+    #[cfg(feature = "backend-iggy")]
+    type Iggy = IggyConsumer;
     #[cfg(feature = "backend-redis")]
     type Redis = RedisConsumer;
     #[cfg(feature = "backend-stdio")]
@@ -136,6 +159,8 @@ impl SeaStreamerBackend for SeaConsumer {
         match self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(_) => Backend::Kafka,
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(_) => Backend::Iggy,
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(_) => Backend::Redis,
             #[cfg(feature = "backend-stdio")]
@@ -149,6 +174,23 @@ impl SeaStreamerBackend for SeaConsumer {
     fn get_kafka(&mut self) -> Option<&mut Self::Kafka> {
         match &mut self.backend {
             SeaConsumerBackend::Kafka(s) => Some(s),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(_) => None,
+            #[cfg(feature = "backend-redis")]
+            SeaConsumerBackend::Redis(_) => None,
+            #[cfg(feature = "backend-stdio")]
+            SeaConsumerBackend::Stdio(_) => None,
+            #[cfg(feature = "backend-file")]
+            SeaConsumerBackend::File(_) => None,
+        }
+    }
+
+    #[cfg(feature = "backend-iggy")]
+    fn get_iggy(&mut self) -> Option<&mut Self::Iggy> {
+        match &mut self.backend {
+            #[cfg(feature = "backend-kafka")]
+            SeaConsumerBackend::Kafka(_) => None,
+            SeaConsumerBackend::Iggy(s) => Some(s),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -163,6 +205,8 @@ impl SeaStreamerBackend for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(_) => None,
             SeaConsumerBackend::Redis(s) => Some(s),
             #[cfg(feature = "backend-stdio")]
             SeaConsumerBackend::Stdio(_) => None,
@@ -176,6 +220,8 @@ impl SeaStreamerBackend for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(_) => None,
             SeaConsumerBackend::Stdio(s) => Some(s),
@@ -189,6 +235,8 @@ impl SeaStreamerBackend for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -208,6 +256,8 @@ impl Consumer for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(i) => i.seek(to).await.map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(i) => i.seek(to).await.map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(i) => i.seek(to).await.map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -221,6 +271,8 @@ impl Consumer for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(i) => i.rewind(pos).await.map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(i) => i.rewind(pos).await.map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(i) => i.rewind(pos).await.map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -234,6 +286,8 @@ impl Consumer for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(i) => i.assign(ss).map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(i) => i.assign(ss).map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(i) => i.assign(ss).map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -247,6 +301,8 @@ impl Consumer for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(i) => i.unassign(ss).map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(i) => i.unassign(ss).map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(i) => i.unassign(ss).map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -260,6 +316,8 @@ impl Consumer for SeaConsumer {
         match &self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(i) => NextFuture::Kafka(i.next()),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(i) => NextFuture::Iggy(i.next()),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(i) => NextFuture::Redis(i.next()),
             #[cfg(feature = "backend-stdio")]
@@ -273,6 +331,8 @@ impl Consumer for SeaConsumer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaConsumerBackend::Kafka(i) => SeaMessageStream::Kafka(i.stream()),
+            #[cfg(feature = "backend-iggy")]
+            SeaConsumerBackend::Iggy(i) => SeaMessageStream::Iggy(i.stream()),
             #[cfg(feature = "backend-redis")]
             SeaConsumerBackend::Redis(i) => SeaMessageStream::Redis(i.stream()),
             #[cfg(feature = "backend-stdio")]
@@ -294,6 +354,11 @@ impl<'a> Future for NextFuture<'a> {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(fut) => match Pin::new(fut).poll_unpin(cx) {
                 Poll::Ready(res) => Poll::Ready(res.map(SeaMessage::Kafka).map_err(map_err)),
+                Poll::Pending => Poll::Pending,
+            },
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(fut) => match Pin::new(fut).poll_unpin(cx) {
+                Poll::Ready(res) => Poll::Ready(res.map(SeaMessage::Iggy).map_err(map_err)),
                 Poll::Pending => Poll::Pending,
             },
             #[cfg(feature = "backend-redis")]
@@ -327,6 +392,14 @@ impl<'a> Stream for SeaMessageStream<'a> {
             Self::Kafka(ss) => match Pin::new(ss).poll_next(cx) {
                 Poll::Ready(Some(res)) => {
                     Poll::Ready(Some(res.map(SeaMessage::Kafka).map_err(map_err)))
+                }
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            },
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(ss) => match Pin::new(ss).poll_next(cx) {
+                Poll::Ready(Some(res)) => {
+                    Poll::Ready(Some(res.map(SeaMessage::Iggy).map_err(map_err)))
                 }
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,

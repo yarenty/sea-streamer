@@ -2,6 +2,8 @@
 use sea_streamer_file::FileConnectOptions;
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::KafkaConnectOptions;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyConnectOptions;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::RedisConnectOptions;
 #[cfg(feature = "backend-stdio")]
@@ -16,6 +18,8 @@ use std::time::Duration;
 pub struct SeaConnectOptions {
     #[cfg(feature = "backend-kafka")]
     kafka: KafkaConnectOptions,
+    #[cfg(feature = "backend-iggy")]
+    iggy: IggyConnectOptions,
     #[cfg(feature = "backend-redis")]
     redis: RedisConnectOptions,
     #[cfg(feature = "backend-stdio")]
@@ -28,6 +32,11 @@ impl SeaConnectOptions {
     #[cfg(feature = "backend-kafka")]
     pub fn into_kafka_connect_options(self) -> KafkaConnectOptions {
         self.kafka
+    }
+
+    #[cfg(feature = "backend-iggy")]
+    pub fn into_iggy_connect_options(self) -> IggyConnectOptions {
+        self.iggy
     }
 
     #[cfg(feature = "backend-redis")]
@@ -50,6 +59,13 @@ impl SeaConnectOptions {
     pub fn set_kafka_connect_options<F: FnOnce(&mut KafkaConnectOptions)>(&mut self, func: F) {
         func(&mut self.kafka)
     }
+
+    #[cfg(feature = "backend-iggy")]
+    /// Set options that only applies to Iggy
+    pub fn set_iggy_connect_options<F: FnOnce(&mut IggyConnectOptions)>(&mut self, func: F) {
+        func(&mut self.iggy)
+    }
+
 
     #[cfg(feature = "backend-redis")]
     /// Set options that only applies to Redis
@@ -78,6 +94,8 @@ impl ConnectOptions for SeaConnectOptions {
 
         #[cfg(feature = "backend-kafka")]
         return self.kafka.timeout().map_err(map_err);
+        #[cfg(feature = "backend-iggy")]
+        return self.iggy.timeout().map_err(map_err);
         #[cfg(feature = "backend-redis")]
         return self.redis.timeout().map_err(map_err);
         #[cfg(feature = "backend-stdio")]
@@ -89,6 +107,8 @@ impl ConnectOptions for SeaConnectOptions {
     fn set_timeout(&mut self, d: Duration) -> SeaResult<&mut Self> {
         #[cfg(feature = "backend-kafka")]
         self.kafka.set_timeout(d).map_err(map_err)?;
+        #[cfg(feature = "backend-iggy")]
+        self.iggy.set_timeout(d).map_err(map_err)?;
         #[cfg(feature = "backend-redis")]
         self.redis.set_timeout(d).map_err(map_err)?;
         #[cfg(feature = "backend-stdio")]

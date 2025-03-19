@@ -2,6 +2,8 @@
 use sea_streamer_file::FileProducerOptions;
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::KafkaProducerOptions;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyProducerOptions;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::RedisProducerOptions;
 #[cfg(feature = "backend-stdio")]
@@ -14,6 +16,8 @@ use sea_streamer_types::ProducerOptions;
 pub struct SeaProducerOptions {
     #[cfg(feature = "backend-kafka")]
     kafka: KafkaProducerOptions,
+    #[cfg(feature = "backend-iggy")]
+    iggy: IggyProducerOptions,
     #[cfg(feature = "backend-redis")]
     redis: RedisProducerOptions,
     #[cfg(feature = "backend-stdio")]
@@ -25,6 +29,11 @@ pub struct SeaProducerOptions {
 impl SeaProducerOptions {
     #[cfg(feature = "backend-kafka")]
     pub fn into_kafka_producer_options(self) -> KafkaProducerOptions {
+        self.kafka
+    }
+
+    #[cfg(feature = "backend-iggy")]
+    pub fn into_iggy_producer_options(self) -> IggyProducerOptions {
         self.kafka
     }
 
@@ -47,6 +56,11 @@ impl SeaProducerOptions {
     /// Set options that only applies to Kafka
     pub fn set_kafka_producer_options<F: FnOnce(&mut KafkaProducerOptions)>(&mut self, func: F) {
         func(&mut self.kafka)
+    }
+    #[cfg(feature = "backend-iggy")]
+    /// Set options that only applies to Iggy
+    pub fn set_iggy_producer_options<F: FnOnce(&mut IggyProducerOptions)>(&mut self, func: F) {
+        func(&mut self.iggy)
     }
 
     #[cfg(feature = "backend-redis")]

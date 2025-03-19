@@ -2,6 +2,8 @@
 use sea_streamer_file::{AutoStreamReset as FileAutoStreamReset, FileConsumerOptions};
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::{AutoOffsetReset, KafkaConsumerOptions};
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::{AutoOffsetReset as IggyAutoOffsetReset, IggyConsumerOptions};
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::{AutoStreamReset as RedisAutoStreamReset, RedisConsumerOptions};
 #[cfg(feature = "backend-stdio")]
@@ -15,6 +17,8 @@ use sea_streamer_types::{ConsumerGroup, ConsumerMode, ConsumerOptions};
 pub struct SeaConsumerOptions {
     #[cfg(feature = "backend-kafka")]
     kafka: KafkaConsumerOptions,
+    #[cfg(feature = "backend-iggy")]
+    iggy: IggyConsumerOptions,
     #[cfg(feature = "backend-redis")]
     redis: RedisConsumerOptions,
     #[cfg(feature = "backend-stdio")]
@@ -35,6 +39,10 @@ impl SeaConsumerOptions {
         self.kafka
     }
 
+    #[cfg(feature = "backend-iggy")]
+    pub fn into_iggy_consumer_options(self) -> IggyConsumerOptions {
+        self.iggy
+    }
     #[cfg(feature = "backend-redis")]
     pub fn into_redis_consumer_options(self) -> RedisConsumerOptions {
         self.redis
@@ -55,6 +63,13 @@ impl SeaConsumerOptions {
     pub fn set_kafka_consumer_options<F: FnOnce(&mut KafkaConsumerOptions)>(&mut self, func: F) {
         func(&mut self.kafka)
     }
+
+    #[cfg(feature = "backend-iggy")]
+    /// Set options that only applies to Iggy
+    pub fn set_iggy_consumer_options<F: FnOnce(&mut IggyConsumerOptions)>(&mut self, func: F) {
+        func(&mut self.iggy)
+    }
+
 
     #[cfg(feature = "backend-redis")]
     /// Set options that only applies to Redis
@@ -82,6 +97,13 @@ impl SeaConsumerOptions {
                 SeaStreamReset::Latest => AutoOffsetReset::Latest,
             });
         });
+        #[cfg(feature = "backend-iggy")]
+        self.set_iggy_consumer_options(|options| {
+            options.set_auto_offset_reset(match _val {
+                SeaStreamReset::Earliest => IggyAutoOffsetReset::Earliest,
+                SeaStreamReset::Latest => IggyAutoOffsetReset::Latest,
+            });
+        });
         #[cfg(feature = "backend-redis")]
         self.set_redis_consumer_options(|options| {
             options.set_auto_stream_reset(match _val {
@@ -106,6 +128,8 @@ impl ConsumerOptions for SeaConsumerOptions {
         Self {
             #[cfg(feature = "backend-kafka")]
             kafka: KafkaConsumerOptions::new(mode),
+            #[cfg(feature = "backend-iggy")]
+            iggy: IggyConsumerOptions::new(mode),
             #[cfg(feature = "backend-redis")]
             redis: RedisConsumerOptions::new(mode),
             #[cfg(feature = "backend-stdio")]
@@ -121,6 +145,8 @@ impl ConsumerOptions for SeaConsumerOptions {
 
         #[cfg(feature = "backend-kafka")]
         return self.kafka.mode().map_err(map_err);
+        #[cfg(feature = "backend-iggy")]
+        return self.iggy.mode().map_err(map_err);
         #[cfg(feature = "backend-redis")]
         return self.redis.mode().map_err(map_err);
         #[cfg(feature = "backend-stdio")]
@@ -135,6 +161,8 @@ impl ConsumerOptions for SeaConsumerOptions {
 
         #[cfg(feature = "backend-kafka")]
         return self.kafka.consumer_group().map_err(map_err);
+        #[cfg(feature = "backend-iggy")]
+        return self.iggy.consumer_group().map_err(map_err);
         #[cfg(feature = "backend-redis")]
         return self.redis.consumer_group().map_err(map_err);
         #[cfg(feature = "backend-stdio")]
@@ -148,6 +176,10 @@ impl ConsumerOptions for SeaConsumerOptions {
         #![allow(clippy::redundant_clone)]
         #[cfg(feature = "backend-kafka")]
         self.kafka
+            .set_consumer_group(group_id.clone())
+            .map_err(map_err)?;
+        #[cfg(feature = "backend-iggy")]
+        self.iggy
             .set_consumer_group(group_id.clone())
             .map_err(map_err)?;
         #[cfg(feature = "backend-redis")]

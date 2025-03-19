@@ -8,6 +8,8 @@ use std::str::FromStr;
 
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::AutoOffsetReset;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyAutoOffsetReset;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::AutoStreamReset;
 
@@ -63,6 +65,13 @@ async fn main() -> Result<()> {
         options.set_auto_offset_reset(match offset {
             Offset::Start => AutoOffsetReset::Earliest,
             Offset::End => AutoOffsetReset::Latest,
+        });
+    });
+    #[cfg(feature = "backend-iggy")]
+    options.set_iggy_consumer_options(|options| {
+        options.set_auto_offset_reset(match offset {
+            Offset::Start => IggyAutoOffsetReset::Earliest,
+            Offset::End => IggyAutoOffsetReset::Latest,
         });
     });
     #[cfg(feature = "backend-redis")]

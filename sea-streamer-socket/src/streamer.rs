@@ -2,6 +2,8 @@
 use sea_streamer_file::FileStreamer;
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::KafkaStreamer;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyStreamer;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::RedisStreamer;
 #[cfg(feature = "backend-stdio")]
@@ -25,6 +27,8 @@ pub struct SeaStreamer {
 pub(crate) enum SeaStreamerInner {
     #[cfg(feature = "backend-kafka")]
     Kafka(KafkaStreamer),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(IggyStreamer),
     #[cfg(feature = "backend-redis")]
     Redis(RedisStreamer),
     #[cfg(feature = "backend-stdio")]
@@ -41,6 +45,16 @@ impl From<KafkaStreamer> for SeaStreamer {
         }
     }
 }
+
+#[cfg(feature = "backend-iggy")]
+impl From<IggyStreamer> for SeaStreamer {
+    fn from(i: IggyStreamer) -> Self {
+        Self {
+            backend: SeaStreamerInner::Iggy(i),
+        }
+    }
+}
+
 
 #[cfg(feature = "backend-redis")]
 impl From<RedisStreamer> for SeaStreamer {
@@ -72,6 +86,8 @@ impl From<FileStreamer> for SeaStreamer {
 impl SeaStreamerBackend for SeaStreamer {
     #[cfg(feature = "backend-kafka")]
     type Kafka = KafkaStreamer;
+    #[cfg(feature = "backend-iggy")]
+    type Iggy = IggyStreamer;
     #[cfg(feature = "backend-redis")]
     type Redis = RedisStreamer;
     #[cfg(feature = "backend-stdio")]
@@ -83,6 +99,8 @@ impl SeaStreamerBackend for SeaStreamer {
         match self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(_) => Backend::Kafka,
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(_) => Backend::Iggy,
             #[cfg(feature = "backend-redis")]
             SeaStreamerInner::Redis(_) => Backend::Redis,
             #[cfg(feature = "backend-stdio")]
@@ -96,6 +114,8 @@ impl SeaStreamerBackend for SeaStreamer {
     fn get_kafka(&mut self) -> Option<&mut Self::Kafka> {
         match &mut self.backend {
             SeaStreamerInner::Kafka(s) => Some(s),
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaStreamerInner::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -105,11 +125,28 @@ impl SeaStreamerBackend for SeaStreamer {
         }
     }
 
+
+    #[cfg(feature = "backend-iggy")]
+    fn get_iggy(&mut self) -> Option<&mut Self::Kafka> {
+        match &mut self.backend {
+            #[cfg(feature = "backend-kafka")]
+            SeaStreamerInner::Kafka(_) => None,
+            SeaStreamerInner::Iggy(s) => Some(s),
+            #[cfg(feature = "backend-redis")]
+            SeaStreamerInner::Redis(_) => None,
+            #[cfg(feature = "backend-stdio")]
+            SeaStreamerInner::Stdio(_) => None,
+            #[cfg(feature = "backend-file")]
+            SeaStreamerInner::File(_) => None,
+        }
+    }
     #[cfg(feature = "backend-redis")]
     fn get_redis(&mut self) -> Option<&mut Self::Redis> {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(_) => None,
             SeaStreamerInner::Redis(s) => Some(s),
             #[cfg(feature = "backend-stdio")]
             SeaStreamerInner::Stdio(_) => None,
@@ -123,6 +160,8 @@ impl SeaStreamerBackend for SeaStreamer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaStreamerInner::Redis(_) => None,
             SeaStreamerInner::Stdio(s) => Some(s),
@@ -136,6 +175,8 @@ impl SeaStreamerBackend for SeaStreamer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaStreamerInner::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -159,6 +200,12 @@ impl Streamer for SeaStreamer {
                 #[cfg(feature = "backend-kafka")]
                 "kafka" => SeaStreamerInner::Kafka(
                     KafkaStreamer::connect(uri, options.into_kafka_connect_options())
+                        .await
+                        .map_err(map_err)?,
+                ),
+                #[cfg(feature = "backend-iggy")]
+                "iggy" => SeaStreamerInner::Iggy(
+                    IggyStreamer::connect(uri, options.into_iggy_connect_options())
                         .await
                         .map_err(map_err)?,
                 ),
@@ -195,6 +242,8 @@ impl Streamer for SeaStreamer {
         match self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(i) => i.disconnect().await.map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(i) => i.disconnect().await.map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaStreamerInner::Redis(i) => i.disconnect().await.map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -212,6 +261,12 @@ impl Streamer for SeaStreamer {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(i) => SeaProducerBackend::Kafka(
                 i.create_generic_producer(options.into_kafka_producer_options())
+                    .await
+                    .map_err(map_err)?,
+            ),
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(i) => SeaProducerBackend::Iggy(
+                i.create_generic_producer(options.into_iggy_producer_options())
                     .await
                     .map_err(map_err)?,
             ),
@@ -246,6 +301,12 @@ impl Streamer for SeaStreamer {
             #[cfg(feature = "backend-kafka")]
             SeaStreamerInner::Kafka(i) => SeaConsumerBackend::Kafka(
                 i.create_consumer(streams, options.into_kafka_consumer_options())
+                    .await
+                    .map_err(map_err)?,
+            ),
+            #[cfg(feature = "backend-iggy")]
+            SeaStreamerInner::Iggy(i) => SeaConsumerBackend::Iggy(
+                i.create_consumer(streams, options.into_iggy_consumer_options())
                     .await
                     .map_err(map_err)?,
             ),

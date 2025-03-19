@@ -3,6 +3,8 @@
 pub enum Backend {
     #[cfg(feature = "backend-kafka")]
     Kafka,
+    #[cfg(feature = "backend-iggy")]
+    Iggy,
     #[cfg(feature = "backend-redis")]
     Redis,
     #[cfg(feature = "backend-stdio")]
@@ -15,6 +17,8 @@ pub enum Backend {
 pub trait SeaStreamerBackend {
     #[cfg(feature = "backend-kafka")]
     type Kafka;
+    #[cfg(feature = "backend-iggy")]
+    type Iggy;
     #[cfg(feature = "backend-redis")]
     type Redis;
     #[cfg(feature = "backend-stdio")]
@@ -28,6 +32,10 @@ pub trait SeaStreamerBackend {
     #[cfg(feature = "backend-kafka")]
     /// Get the concrete type for the Kafka backend. None if it's another Backend
     fn get_kafka(&mut self) -> Option<&mut Self::Kafka>;
+
+    #[cfg(feature = "backend-iggy")]
+    /// Get the concrete type for the Iggy backend. None if it's another Backend
+    fn get_iggy(&mut self) -> Option<&mut Self::Iggy>;
 
     #[cfg(feature = "backend-redis")]
     /// Get the concrete type for the Redis backend. None if it's another Backend

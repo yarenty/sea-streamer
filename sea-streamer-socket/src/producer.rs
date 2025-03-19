@@ -2,6 +2,8 @@
 use sea_streamer_file::FileProducer;
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::KafkaProducer;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyProducer;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::RedisProducer;
 #[cfg(feature = "backend-stdio")]
@@ -23,6 +25,8 @@ pub struct SeaProducer {
 pub(crate) enum SeaProducerBackend {
     #[cfg(feature = "backend-kafka")]
     Kafka(KafkaProducer),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(IggyProducer),
     #[cfg(feature = "backend-redis")]
     Redis(RedisProducer),
     #[cfg(feature = "backend-stdio")]
@@ -36,6 +40,16 @@ impl From<KafkaProducer> for SeaProducer {
     fn from(i: KafkaProducer) -> Self {
         Self {
             backend: SeaProducerBackend::Kafka(i),
+        }
+    }
+}
+
+
+#[cfg(feature = "backend-iggy")]
+impl From<IggyProducer> for SeaProducer {
+    fn from(i: IggyProducer) -> Self {
+        Self {
+            backend: SeaProducerBackend::Iggy(i),
         }
     }
 }
@@ -70,6 +84,8 @@ impl From<FileProducer> for SeaProducer {
 impl SeaStreamerBackend for SeaProducer {
     #[cfg(feature = "backend-kafka")]
     type Kafka = KafkaProducer;
+    #[cfg(feature = "backend-iggy")]
+    type Iggy = IggyProducer;
     #[cfg(feature = "backend-redis")]
     type Redis = RedisProducer;
     #[cfg(feature = "backend-stdio")]
@@ -81,6 +97,8 @@ impl SeaStreamerBackend for SeaProducer {
         match self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(_) => Backend::Kafka,
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(_) => Backend::Iggy,
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(_) => Backend::Redis,
             #[cfg(feature = "backend-stdio")]
@@ -94,6 +112,8 @@ impl SeaStreamerBackend for SeaProducer {
     fn get_kafka(&mut self) -> Option<&mut Self::Kafka> {
         match &mut self.backend {
             SeaProducerBackend::Kafka(s) => Some(s),
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -103,11 +123,29 @@ impl SeaStreamerBackend for SeaProducer {
         }
     }
 
+    #[cfg(feature = "backend-iggy")]
+    fn get_iggy(&mut self) -> Option<&mut Self::Iggy> {
+        match &mut self.backend {
+            #[cfg(feature = "backend-kafka")]
+            SeaProducerBackend::Kafka(_) => None,
+            SeaProducerBackend::Iggy(s) => Some(s),
+            #[cfg(feature = "backend-redis")]
+            SeaProducerBackend::Redis(_) => None,
+            #[cfg(feature = "backend-stdio")]
+            SeaProducerBackend::Stdio(_) => None,
+            #[cfg(feature = "backend-file")]
+            SeaProducerBackend::File(_) => None,
+        }
+    }
+
+
     #[cfg(feature = "backend-redis")]
     fn get_redis(&mut self) -> Option<&mut Self::Redis> {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(_) => None,
             SeaProducerBackend::Redis(s) => Some(s),
             #[cfg(feature = "backend-stdio")]
             SeaProducerBackend::Stdio(_) => None,
@@ -121,6 +159,8 @@ impl SeaStreamerBackend for SeaProducer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(_) => None,
             SeaProducerBackend::Stdio(s) => Some(s),
@@ -134,6 +174,8 @@ impl SeaStreamerBackend for SeaProducer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -148,6 +190,8 @@ impl SeaStreamerBackend for SeaProducer {
 pub enum SendFuture {
     #[cfg(feature = "backend-kafka")]
     Kafka(sea_streamer_kafka::SendFuture),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(sea_streamer_iggy::SendFuture),
     #[cfg(feature = "backend-redis")]
     Redis(sea_streamer_redis::SendFuture),
     #[cfg(feature = "backend-stdio")]
@@ -166,6 +210,10 @@ impl Producer for SeaProducer {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(i) => {
                 SendFuture::Kafka(i.send_to(stream, payload).map_err(map_err)?)
+            }
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(i) => {
+                SendFuture::Iggy(i.send_to(stream, payload).map_err(map_err)?)
             }
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(i) => {
@@ -186,6 +234,8 @@ impl Producer for SeaProducer {
         match self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(i) => i.end().await.map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(i) => i.end().await.map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(i) => i.end().await.map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -199,6 +249,8 @@ impl Producer for SeaProducer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(i) => i.flush().await.map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(i) => i.flush().await.map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(i) => i.flush().await.map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -212,6 +264,8 @@ impl Producer for SeaProducer {
         match &mut self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(i) => i.anchor(stream).map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(i) => i.anchor(stream).map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(i) => i.anchor(stream).map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -225,6 +279,8 @@ impl Producer for SeaProducer {
         match &self.backend {
             #[cfg(feature = "backend-kafka")]
             SeaProducerBackend::Kafka(i) => i.anchored().map_err(map_err),
+            #[cfg(feature = "backend-iggy")]
+            SeaProducerBackend::Iggy(i) => i.anchored().map_err(map_err),
             #[cfg(feature = "backend-redis")]
             SeaProducerBackend::Redis(i) => i.anchored().map_err(map_err),
             #[cfg(feature = "backend-stdio")]
@@ -245,6 +301,11 @@ impl Future for SendFuture {
         match Pin::into_inner(self) {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(fut) => match Pin::new(fut).poll_unpin(cx) {
+                Poll::Ready(res) => Poll::Ready(res.map_err(map_err)),
+                Poll::Pending => Poll::Pending,
+            },
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(fut) => match Pin::new(fut).poll_unpin(cx) {
                 Poll::Ready(res) => Poll::Ready(res.map_err(map_err)),
                 Poll::Pending => Poll::Pending,
             },

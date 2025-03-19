@@ -2,6 +2,8 @@
 use sea_streamer_file::FileMessage;
 #[cfg(feature = "backend-kafka")]
 use sea_streamer_kafka::KafkaMessage;
+#[cfg(feature = "backend-iggy")]
+use sea_streamer_iggy::IggyMessage;
 #[cfg(feature = "backend-redis")]
 use sea_streamer_redis::RedisMessage;
 #[cfg(feature = "backend-stdio")]
@@ -15,6 +17,8 @@ use sea_streamer_types::{Message, Payload, SeqNo, ShardId, StreamKey, Timestamp}
 pub enum SeaMessage<'a> {
     #[cfg(feature = "backend-kafka")]
     Kafka(KafkaMessage<'a>),
+    #[cfg(feature = "backend-iggy")]
+    Iggy(IggyMessage<'a>),
     #[cfg(feature = "backend-redis")]
     Redis(RedisMessage),
     #[cfg(feature = "backend-stdio")]
@@ -28,6 +32,8 @@ pub enum SeaMessage<'a> {
 impl<'a> SeaStreamerBackend for SeaMessage<'a> {
     #[cfg(feature = "backend-kafka")]
     type Kafka = KafkaMessage<'a>;
+    #[cfg(feature = "backend-iggy")]
+    type Iggy = IggyMessage<'a>;
     #[cfg(feature = "backend-redis")]
     type Redis = RedisMessage;
     #[cfg(feature = "backend-stdio")]
@@ -39,6 +45,8 @@ impl<'a> SeaStreamerBackend for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(_) => Backend::Kafka,
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => Backend::Iggy,
             #[cfg(feature = "backend-redis")]
             Self::Redis(_) => Backend::Redis,
             #[cfg(feature = "backend-stdio")]
@@ -54,6 +62,8 @@ impl<'a> SeaStreamerBackend for SeaMessage<'a> {
     fn get_kafka(&mut self) -> Option<&mut KafkaMessage<'a>> {
         match self {
             Self::Kafka(s) => Some(s),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             Self::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -63,11 +73,32 @@ impl<'a> SeaStreamerBackend for SeaMessage<'a> {
         }
     }
 
+
+
+    #[cfg(feature = "backend-iggy")]
+    fn get_iggy(&mut self) -> Option<&mut IggyMessage<'a>> {
+        match self {
+            Self::Iggy(s) => Some(s),
+            #[cfg(feature = "backend-kafka")]
+            Self::Kafka(_) => None,
+            #[cfg(feature = "backend-redis")]
+            Self::Redis(_) => None,
+            #[cfg(feature = "backend-stdio")]
+            Self::Stdio(_) => None,
+            #[cfg(feature = "backend-file")]
+            Self::File(_) => None,
+        }
+    }
+
+
+
     #[cfg(feature = "backend-redis")]
     fn get_redis(&mut self) -> Option<&mut RedisMessage> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => None,
             Self::Redis(s) => Some(s),
             #[cfg(feature = "backend-stdio")]
             Self::Stdio(_) => None,
@@ -83,6 +114,8 @@ impl<'a> SeaStreamerBackend for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             Self::Redis(_) => None,
             Self::Stdio(s) => Some(s),
@@ -98,6 +131,8 @@ impl<'a> SeaStreamerBackend for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(_) => None,
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(_) => None,
             #[cfg(feature = "backend-redis")]
             Self::Redis(_) => None,
             #[cfg(feature = "backend-stdio")]
@@ -114,6 +149,8 @@ impl<'a> Message for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(i) => i.stream_key(),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(i) => i.stream_key(),
             #[cfg(feature = "backend-redis")]
             Self::Redis(i) => i.stream_key(),
             #[cfg(feature = "backend-stdio")]
@@ -129,6 +166,8 @@ impl<'a> Message for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(i) => i.shard_id(),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(i) => i.shard_id(),
             #[cfg(feature = "backend-redis")]
             Self::Redis(i) => i.shard_id(),
             #[cfg(feature = "backend-stdio")]
@@ -144,6 +183,8 @@ impl<'a> Message for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(i) => i.sequence(),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(i) => i.sequence(),
             #[cfg(feature = "backend-redis")]
             Self::Redis(i) => i.sequence(),
             #[cfg(feature = "backend-stdio")]
@@ -159,6 +200,8 @@ impl<'a> Message for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(i) => i.timestamp(),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(i) => i.timestamp(),
             #[cfg(feature = "backend-redis")]
             Self::Redis(i) => i.timestamp(),
             #[cfg(feature = "backend-stdio")]
@@ -174,6 +217,8 @@ impl<'a> Message for SeaMessage<'a> {
         match self {
             #[cfg(feature = "backend-kafka")]
             Self::Kafka(i) => i.message(),
+            #[cfg(feature = "backend-iggy")]
+            Self::Iggy(i) => i.message(),
             #[cfg(feature = "backend-redis")]
             Self::Redis(i) => i.message(),
             #[cfg(feature = "backend-stdio")]
